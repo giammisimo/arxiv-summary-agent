@@ -134,4 +134,16 @@ while True:
         {"messages": [{"role":"user","content": user_input}]}, config, stream_mode="debug"
     )
     for event in events:
-        event["messages"][-1].pretty_print()
+        print(event)
+        #event["messages"][-1].pretty_print() #stream_mode='value'
+        #stream_mode='debug'
+        if event['type'] == 'checkpoint':
+            if event['payload']['values']["messages"]:
+                event['payload']['values']["messages"][-1].pretty_print() 
+        elif event['type'] == 'task':
+            event['payload']['input']["messages"][-1].pretty_print() 
+        elif event['type'] == 'value':
+            event["messages"][-1].pretty_print()
+        else:
+            event["messages"][-1].pretty_print()
+
