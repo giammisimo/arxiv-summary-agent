@@ -67,8 +67,17 @@ You are given a tool called retrieve_arxiv_papers that will return a list of pap
 
 researcher_prompt = '''Call retrieve_arxiv_papers with the query of the user.'''
 
-researcher_agent = create_react_agent(llm, tools=[qdrant_retriever], state_modifier=researcher_prompt)
-researcher = AgentExecutor.from_agent_and_tools(researcher_agent, [qdrant_retriever])
+#researcher_agent = create_react_agent(llm, tools=[qdrant_retriever], state_modifier=researcher_prompt)
+#researcher = AgentExecutor.from_agent_and_tools(researcher_agent, [qdrant_retriever])
+
+def researcher(state: State):
+    print("---CALL AGENT---")
+    messages = state["messages"]
+    model = llm#ChatOpenAI(temperature=0, streaming=True, model="gpt-4-turbo")
+    model = model.bind_tools([qdrant_retriever])
+    response = model.invoke(messages)
+    # We return a list, because this will get added to the existing list
+    return {"messages": [response]}
 
 #def researcher(state: State):
 #    print('In researcher')
@@ -112,9 +121,23 @@ graph_builder = StateGraph(MessagesState)
 graph_builder.add_node("researcher",researcher)
 graph_builder.add_node("writer",writer)
 graph_builder.add_node("evaluator",evaluator)
+retrieve = ToolNode([qdrant_retriever])
+graph_builder.add_node("retriever",retrieve)
+
+'''graph_builder.add_conditional_edges(
+    "researcher",
+    # Assess agent decision
+    tools_condition,
+    {
+        # Translate the condition outputs to nodes in our graph
+        "tools": "retriever",
+        END: "writer",
+    },
+)'''
 
 graph_builder.add_edge(START, "researcher")
-graph_builder.add_edge("researcher", "writer")
+graph_builder.add_edge("researcher", "retriever")
+graph_builder.add_edge("retriever", "writer")
 graph_builder.add_edge("writer", "evaluator")
 graph_builder.add_conditional_edges("evaluator", should_continue, ["writer",END])
 
@@ -135,6 +158,7 @@ while True:
     )
     for event in events:
         print(event)
+        input('Press Enter to continue')
         #event["messages"][-1].pretty_print() #stream_mode='value'
         #stream_mode='debug'
         if event['type'] == 'checkpoint':
@@ -144,6 +168,8 @@ while True:
             event['payload']['input']["messages"][-1].pretty_print() 
         elif event['type'] == 'value':
             event["messages"][-1].pretty_print()
+        elif event['type'] == 'task_result':
+            event["payload"]['result'][0][-1][0].pretty_print()
         else:
             event["messages"][-1].pretty_print()
 
