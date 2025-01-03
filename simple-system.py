@@ -4,7 +4,7 @@ from langchain_openai import ChatOpenAI
 from langchain_ollama import ChatOllama
 
 from langchain_core.tools import tool
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder,PromptTemplate
 from langchain_core.messages import HumanMessage, AIMessage
 from langgraph.types import Command
 from langgraph.prebuilt import ToolNode, tools_condition, create_react_agent
@@ -36,14 +36,8 @@ def show_graph(graph: StateGraph):
         print("Could not generate or display the graph image in memory. Ensure all necessary dependencies are installed.")
         print("Error:", e)
 
-
-def stream_graph_updates(user_input: str):
-    for event in graph.stream({"messages": [("user", user_input)]}):
-        for value in event.values():
-            print("Assistant:", value["messages"][-1].content)
-
-
-llm = ChatOllama(model = "llama3.2:3b", temperature = 0.7, num_predict = 256, base_url="http://192.168.1.24:11434")
+llama = ChatOllama(model = "llama3.2:3b", temperature = 0.7, num_predict = 256, base_url="http://192.168.1.24:11434")
+qwq = ChatOllama(model = "qwq", temperature = 0.8, num_predict = 2048, base_url="http://192.168.1.24:11434")
 
 '''DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY')
 
@@ -55,65 +49,54 @@ llm = ChatOpenAI(
     max_tokens=256
 )'''
 
-
 qdrant_retriever = create_retriever_tool(
     qdrant_tool.Qdrant_tool(host='192.168.1.26',port=6555,collection='Gruppo1'),
     "retrieve_arxiv_papers",
     "Search and return arxiv papers that are related to the requested query.",
 )
 
-researcher_prompt = '''You are an agents tasked with searching the most related papers about the topic requested by the user.
-You are given a tool called retrieve_arxiv_papers that will return a list of papers related to the query.'''
-
-researcher_prompt = '''Call retrieve_arxiv_papers with the query of the user.'''
-
-#researcher_agent = create_react_agent(llm, tools=[qdrant_retriever], state_modifier=researcher_prompt)
-#researcher = AgentExecutor.from_agent_and_tools(researcher_agent, [qdrant_retriever])
-
 def researcher(state: State):
-    print("---CALL AGENT---")
+    print("In researcher")
     messages = state["messages"]
-    model = llm#ChatOpenAI(temperature=0, streaming=True, model="gpt-4-turbo")
+    model = llama
     model = model.bind_tools([qdrant_retriever])
     response = model.invoke(messages)
-    # We return a list, because this will get added to the existing list
     return {"messages": [response]}
 
-#def researcher(state: State):
-#    print('In researcher')
-#    print(state)
-#    input('>')
-#    return {"messages": [
-#                HumanMessage(content=researcher_agent.invoke(state)['messages'][-1].content, name="researcher")
-#            ]}
+
+# Write the survey inside <survey></survey> tags.
+#The survey must be formal and should have a brief overview of the papers and a short breakdown of every paper given.'''
+
+writer_prompt = PromptTemplate(
+    template="""You are an agent tasked with writing a small survey based on the query given by the user and the papers that you are given.\n 
+    Here is the papers: \n\n {context} \n\n
+    Here is the user query: {question} \n
+    """,
+    input_variables=["context", "question"],
+)
 
 def writer(state: State):
     print('In writer')
     print(state)
-    input('>')
-    exit()
-    return researcher(state)
+    messages = state["messages"]
+
+    question = messages[0].content
+    docs = messages[-1].content
+
+    model = writer_prompt | qwq
+    response = model.invoke({'context':docs, 'question': question})
+
+    print(response)
+    return {"messages": [response]}
 
 def evaluator(state: State):
     print('In evaluator')
-    print(state)
-    input('>')
+    #print(state)
     exit()
-    return researcher(state)
+    return {'messages':state['messages']}
 
 def should_continue(state: State):
-    messages = state["messages"]
-    #print(messages)
-    last_message = messages[-1]
-    if 'researcher' in last_message.content.lower():
-        print('Calling researcher....')
-        return "researcher"
-    elif 'developer' in last_message.content.lower():
-        print('Calling developer....')
-        return "developer"
-    else:
-        print('Ending....')
-        return END
+    return END # placeholder
 
 memory = MemorySaver()
 
@@ -141,7 +124,7 @@ graph_builder.add_edge("retriever", "writer")
 graph_builder.add_edge("writer", "evaluator")
 graph_builder.add_conditional_edges("evaluator", should_continue, ["writer",END])
 
-graph = graph_builder.compile(checkpointer=memory)
+graph = graph_builder.compile()
 
 show_graph(graph)
 config = {"configurable": {"thread_id": "1"}}
@@ -157,11 +140,11 @@ while True:
         {"messages": [{"role":"user","content": user_input}]}, config, stream_mode="debug"
     )
     for event in events:
-        print(event)
+        #print(event)
         input('Press Enter to continue')
         #event["messages"][-1].pretty_print() #stream_mode='value'
         #stream_mode='debug'
-        if event['type'] == 'checkpoint':
+        '''if event['type'] == 'checkpoint':
             if event['payload']['values']["messages"]:
                 event['payload']['values']["messages"][-1].pretty_print() 
         elif event['type'] == 'task':
@@ -169,7 +152,9 @@ while True:
         elif event['type'] == 'value':
             event["messages"][-1].pretty_print()
         elif event['type'] == 'task_result':
+            print('task')
             event["payload"]['result'][0][-1][0].pretty_print()
         else:
-            event["messages"][-1].pretty_print()
+            event["messages"][-1].pretty_print()'''
+        print(event['type'])
 
