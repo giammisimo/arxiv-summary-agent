@@ -34,7 +34,8 @@ def show_graph(graph: StateGraph):
         print("Error:", e)
 
 llama = ChatOllama(model = "llama3.2:3b", temperature = 0.7, num_predict = 256, base_url="http://192.168.1.24:11434")
-qwq = ChatOllama(model = "qwq", temperature = 0.8, num_predict = 2048, base_url="http://192.168.1.24:11434")
+llama_long = ChatOllama(model = "llama3.2:3b", temperature = 0.8, num_predict = 1024, base_url="http://192.168.1.24:11434")
+qwq = ChatOllama(model = "qwq", temperature = 0.8, num_predict = 1024, base_url="http://192.168.1.24:11434")
 
 '''DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY')
 
@@ -64,10 +65,11 @@ def researcher(state: State):
 # Write the survey inside <survey></survey> tags.
 
 writer_prompt = PromptTemplate(
-    template="""You are an agent tasked with writing a small survey based on the query given by the user and the papers that you are given.\n 
-    Here is the papers: \n\n {context} \n\n
+    template="""You are an agent tasked with writing a survey based on the query given by the user and the papers that you are given.\n 
+    Here are the papers: \n\n {context} \n\n
     Here is the user query: {question} \n
-    The survey must be formal and should have a brief overview of the papers and a short breakdown of every paper given.
+    The survey must be formal and should have an overview of all the papers and a short breakdown of every paper given.
+    You must only focus on the given papers.
     """,
     input_variables=["context", "question"],
 )
@@ -80,7 +82,7 @@ def writer(state: State):
     question = messages[0].content
     docs = messages[-1].content
 
-    model = writer_prompt | qwq
+    model = writer_prompt | llama_long
     response = model.invoke({'context':docs, 'question': question})
 
     print(response)
