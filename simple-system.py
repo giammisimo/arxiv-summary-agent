@@ -1,25 +1,22 @@
-from typing import Annotated, Literal
 
-from langchain_openai import ChatOpenAI
 from langchain_ollama import ChatOllama
+from langchain_openai import ChatOpenAI
 
 from langchain_core.tools import tool
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder,PromptTemplate
-from langchain_core.messages import HumanMessage, AIMessage
-from langgraph.types import Command
-from langgraph.prebuilt import ToolNode, tools_condition, create_react_agent
+from langchain_core.prompts import PromptTemplate
+from langgraph.prebuilt import ToolNode
 from langgraph.graph import StateGraph, MessagesState
 from langgraph.graph.graph import START, END
 from langgraph.graph.message import add_messages
 from langgraph.checkpoint.memory import MemorySaver
 from langchain.tools.retriever import create_retriever_tool
-from langchain.agents.agent import AgentExecutor
+
+from typing import Annotated
 from typing_extensions import TypedDict
 
-import arxiv_tool, qdrant_tool
+import qdrant_tool
 
 import io, os
-import re
 from PIL import Image
 
 class State(TypedDict):
@@ -50,7 +47,7 @@ llm = ChatOpenAI(
 )'''
 
 qdrant_retriever = create_retriever_tool(
-    qdrant_tool.Qdrant_tool(host='192.168.1.26',port=6555,collection='Gruppo1'),
+    qdrant_tool.Qdrant_tool(host='192.168.1.26',port=6555,collection='Gruppo1',top_k=2),
     "retrieve_arxiv_papers",
     "Search and return arxiv papers that are related to the requested query.",
 )
@@ -65,12 +62,12 @@ def researcher(state: State):
 
 
 # Write the survey inside <survey></survey> tags.
-#The survey must be formal and should have a brief overview of the papers and a short breakdown of every paper given.'''
 
 writer_prompt = PromptTemplate(
     template="""You are an agent tasked with writing a small survey based on the query given by the user and the papers that you are given.\n 
     Here is the papers: \n\n {context} \n\n
     Here is the user query: {question} \n
+    The survey must be formal and should have a brief overview of the papers and a short breakdown of every paper given.
     """,
     input_variables=["context", "question"],
 )
@@ -130,8 +127,8 @@ show_graph(graph)
 config = {"configurable": {"thread_id": "1"}}
 
 while True:
-    #user_input = input("Query: ")
-    user_input = 'llm-based agents'
+    user_input = input("Query: ")
+    #user_input = 'llm-based agents'
     if user_input.lower() in ["quit", "exit", "q"]:
         print("Goodbye!")
         break

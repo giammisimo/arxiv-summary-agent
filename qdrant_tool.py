@@ -26,10 +26,12 @@ class Qdrant_tool(BaseRetriever):
     collection: str
     embedding_model: str = "all-mpnet-base-v2"
     threshold: float = 0.4
+    top_k: int = 5
+    
     class Config:
         arbitrary_types_allowed = True
 
-    def embed_and_search(self, collection: str, query: str, top_k: int = 5) -> list[ScoredPoint]:
+    def embed_and_search(self, collection: str, query: str, top_k: int) -> list[ScoredPoint]:
         print('QDRANT CALLED')
         """
         Embedda una frase e cerca nel database i documenti più simili.
@@ -54,7 +56,7 @@ class Qdrant_tool(BaseRetriever):
         return search_results
     
     def _get_relevant_documents(self, query: str) -> List[Document]:
-        papers = self.embed_and_search(self.collection, query)
+        papers = self.embed_and_search(self.collection, query, self.top_k)
 
         results: List[Document] = []
         
