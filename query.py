@@ -1,11 +1,12 @@
 import simple_system
 from langchain_core.messages.tool import ToolMessage
 
+graph = simple_system.get_graph()
+simple_system.show_graph(graph)
+
 def main():
     config = {"configurable": {"thread_id": "1"}}
 
-    graph = simple_system.get_graph()
-    simple_system.show_graph(graph)
 
     user_input = input("Query: ")
     #user_input = 'llm-based agents'
