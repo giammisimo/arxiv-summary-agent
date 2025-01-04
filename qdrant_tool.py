@@ -69,7 +69,7 @@ class Qdrant_tool(BaseRetriever):
 
                 print('Selected', paper.payload['title'], paper.payload['arxiv-id'])
 
-                content = f'<paper><title></title>{paper.payload['title']}<content>{data['text']}</content></paper>'
+                content = '<paper><title></title>' + paper.payload['title'] + '<content>' + '</content></paper>'
 
                 results.append(Document(page_content=content, metadata={k:v for k,v in data.items() if k != 'text'}))
 

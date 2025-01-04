@@ -20,6 +20,10 @@ import io, os
 import time
 from PIL import Image
 
+QDRANT_HOST = os.getenv('QDRANT_HOST','localhost')
+QDRANT_PORT = int(os.getenv('QDRANT_PORT','6555'))
+QDRANT_COLLECTION = os.getenv('QDRANT_COLLECTION','Gruppo1')
+
 class State(TypedDict):
     messages: Annotated[list, add_messages]
 
@@ -38,7 +42,7 @@ llama = ChatOllama(model = "llama3.2:3b", temperature = 0.7, num_predict = 256, 
 llama_long = ChatOllama(model = "llama3.2:3b", temperature = 0.8, num_predict = 1024, base_url="http://192.168.1.24:11434")
 qwq = ChatOllama(model = "qwq", temperature = 0.8, num_predict = 1024, base_url="http://192.168.1.24:11434")
 
-DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY')
+'''DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY')
 
 llm = ChatOpenAI(
     model="deepseek-chat", 
@@ -46,10 +50,10 @@ llm = ChatOpenAI(
     base_url="https://api.deepseek.com",
     temperature=0.8,
     max_tokens=512
-)
+)'''
 
 qdrant_retriever = create_retriever_tool(
-    qdrant_tool.Qdrant_tool(host='192.168.1.26',port=6555,collection='Gruppo1',top_k=2),
+    qdrant_tool.Qdrant_tool(host=QDRANT_HOST,port=QDRANT_PORT,collection=QDRANT_COLLECTION,top_k=2),
     "retrieve_arxiv_papers",
     "Search and return arxiv papers that are related to the requested query.",
 )
@@ -89,8 +93,8 @@ def writer(state: State):
 
     #print(response)
 
-    #with open(f'temp/output-{str(int(time.time()))}.txt','w') as f:
-    #    f.write(response.content)
+    with open(f'temp/output-{str(int(time.time()))}.txt','w') as f:
+        f.write(response.content)
 
     return {"messages": [response]}
 
