@@ -1,0 +1,15 @@
+fastapi
+uvicorn 
+langchain 
+langchain_core
+qdrant_client 
+langgraph 
+langchain_ollama 
+langchain_openai 
+sentence_transformers
+feedparser
+pydantic 
+pdfminer
+pdfminer.six 
+typing
+typing_extensions
