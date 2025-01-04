@@ -32,7 +32,6 @@ class Qdrant_tool(BaseRetriever):
         arbitrary_types_allowed = True
 
     def embed_and_search(self, collection: str, query: str, top_k: int) -> list[ScoredPoint]:
-        print('QDRANT CALLED')
         """
         Embedda una frase e cerca nel database i documenti più simili.
 
@@ -43,6 +42,7 @@ class Qdrant_tool(BaseRetriever):
         Returns:
             `List[ScoredPoint]`: Lista di punti più simili.
         """
+        print('QDRANT CALLED')
         client = QdrantClient(host=self.host, port=self.port)
         embedding_model = SentenceTransformer(self.embedding_model)
         query_embedding = embedding_model.encode(query, convert_to_tensor=False).tolist()
@@ -67,7 +67,11 @@ class Qdrant_tool(BaseRetriever):
 
                 data = arxiv_tool.get_paper(paper.payload['arxiv-id'])
 
-                results.append(Document(page_content=data['text'], metadata={k:v for k,v in data.items() if k != 'text'}))
+                print('Selected', paper.payload['title'], paper.payload['arxiv-id'])
+
+                content = f'<paper><title></title>{paper.payload['title']}<content>{data['text']}</content></paper>'
+
+                results.append(Document(page_content=content, metadata={k:v for k,v in data.items() if k != 'text'}))
 
                 ## Should we check for tokens left?
 

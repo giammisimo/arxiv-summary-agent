@@ -47,4 +47,7 @@ def get_paper(paper_id: str) -> dict:
     pdf_content = BytesIO(pdf.content)
     paper['text'] = extract_text(pdf_content)
 
+    with open(f'temp/{paper_id}.txt','w') as f:
+        f.write(paper['text'])
+
     return paper
