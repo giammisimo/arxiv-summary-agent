@@ -39,7 +39,8 @@ def show_graph(graph: StateGraph):
         print("Error:", e)
 
 llama = ChatOllama(model = "llama3.2:3b", temperature = 0.7, num_predict = 256, base_url="http://192.168.1.24:11434")
-llama_long = ChatOllama(model = "llama3.2:3b", temperature = 0.8, num_predict = 1024, base_url="http://192.168.1.24:11434")
+## num_ctx is llama.context_length for llama3.2:3b
+llama_long = ChatOllama(model = "llama3.2:3b", temperature = 0.8, num_predict = 2048, num_ctx=131072,base_url="http://192.168.1.24:11434")
 qwq = ChatOllama(model = "qwq", temperature = 0.8, num_predict = 1024, base_url="http://192.168.1.24:11434")
 
 '''DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY')
@@ -88,7 +89,7 @@ def writer(state: State):
     question = messages[0].content
     docs = messages[-1].content
 
-    model = writer_prompt | llama
+    model = writer_prompt | llama_long
     response = model.invoke({'context':docs, 'question': question})
 
     #print(response)
