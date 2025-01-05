@@ -1,0 +1,21 @@
+services:
+  fastapi:
+    container_name: agent-fastapi
+    build: .
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./temp:/app/temp
+    networks:
+      - qdrant_bridge
+    environment:
+      - QDRANT_HOST=jovial_kapitsa
+      - QDRANT_PORT=6333
+      - COLLECTION_NAME=Gruppo1
+      - PYTHONUNBUFFERED=1
+
+# This network already exists and contains the qdrant container.
+# The port to be selected is before the docker port-forwarding.
+networks:
+  qdrant_bridge:
+    external: true
