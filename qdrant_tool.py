@@ -27,9 +27,18 @@ class Qdrant_tool(BaseRetriever):
     embedding_model: str = "all-mpnet-base-v2"
     threshold: float = 0.4
     top_k: int = 5
-    
+
+    client: QdrantClient = None
+    encoder: SentenceTransformer = None
+
     class Config:
         arbitrary_types_allowed = True
+
+    def __init__(self, **data):
+        super().__init__(**data)
+        # Initialize the client and embedding model
+        self.client = QdrantClient(host=self.host, port=self.port)
+        self.encoder = SentenceTransformer(self.embedding_model)
 
     def embed_and_search(self, collection: str, query: str, top_k: int) -> list[ScoredPoint]:
         """
@@ -43,11 +52,11 @@ class Qdrant_tool(BaseRetriever):
             `List[ScoredPoint]`: Lista di punti più simili.
         """
         print('QDRANT CALLED')
-        client = QdrantClient(host=self.host, port=self.port)
-        embedding_model = SentenceTransformer(self.embedding_model)
-        query_embedding = embedding_model.encode(query, convert_to_tensor=False).tolist()
+        #client = QdrantClient(host=self.host, port=self.port)
+        #embedding_model = SentenceTransformer(self.embedding_model)
+        query_embedding = self.encoder.encode(query, convert_to_tensor=False).tolist()
 
-        search_results = client.search(
+        search_results = self.client.search(
             collection_name=collection,
             query_vector=query_embedding,
             limit=top_k,
