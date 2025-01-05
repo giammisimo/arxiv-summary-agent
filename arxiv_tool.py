@@ -2,6 +2,28 @@ import requests
 import feedparser
 from io import BytesIO
 from pdfminer.high_level import extract_text
+import re
+
+def prune_paper(text: str) -> str:
+    """
+    Rimuove le sezioni del paper non utili al riassunto. 
+    """
+    a = (len(text))
+
+    text = re.sub(r'( \n){3,}','',text)
+    text = re.sub(r'\n.\n','',text)
+    text = re.sub(r'\s\s\s','',text)
+
+    match = re.search(r"\s+References", text, re.IGNORECASE)
+    if match:
+        text = text[:match.start()]
+
+    match = re.search(f'\n\\(?[0-9.]+\\)?[.\\-\\s]+Conclusion', text, re.IGNORECASE)
+    if match:
+        text = text[:match.start()]
+
+    print(a, len(text))
+    return text
 
 def get_links(paper_id: str) -> dict:
     """
@@ -45,7 +67,7 @@ def get_paper(paper_id: str) -> dict:
     pdf = requests.get(paper['pdf_link'])
 
     pdf_content = BytesIO(pdf.content)
-    paper['text'] = extract_text(pdf_content)
+    paper['text'] = prune_paper(extract_text(pdf_content))
 
     with open(f'temp/{paper_id}.txt','w') as f:
         f.write(paper['text'])
