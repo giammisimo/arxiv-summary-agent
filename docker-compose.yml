@@ -3,7 +3,7 @@ services:
     container_name: agent-fastapi
     build: .
     ports:
-      - "8001:8000"
+      - "5001:5000"
     volumes:
       - ./temp:/app/temp
     networks:
