@@ -46,8 +46,8 @@ qwq = ChatOllama(model = "qwq", temperature = 0.8, num_predict = 1024, base_url=
 '''DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY')
 
 llm = ChatOpenAI(
-    model="deepseek-chat", 
-    api_key=DEEPSEEK_API_KEY, 
+    model="deepseek-chat",
+    api_key=DEEPSEEK_API_KEY,
     base_url="https://api.deepseek.com",
     temperature=0.8,
     max_tokens=512
@@ -71,11 +71,12 @@ def researcher(state: State):
 # Write the survey inside <survey></survey> tags.
 
 writer_prompt = PromptTemplate(
-    template="""You are an agent tasked with writing a survey based on the query given by the user and the papers that you are given.\n 
+    template="""You are an agent tasked with writing a formal literature review article (also known as a survey) based on the user's query and the provided academic papers.\n
     Here are the papers: \n\n {context} \n\n
     Here is the user query: {question} \n
     The survey must be formal and should have an overview of all the papers and a short breakdown of every paper given.
-    You must only focus on the given papers.
+    You must only focus on the given papers.\n
+    Start directly with the content of the review. Avoid phrases like 'Based on the provided papers' or 'I will create a survey'.
     """,
     input_variables=["context", "question"],
 )
