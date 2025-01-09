@@ -39,30 +39,41 @@ def show_graph(graph: StateGraph):
         print("Error:", e)
 
 llama = ChatOllama(model = "llama3.2:3b", temperature = 0.7, num_predict = 256, base_url="http://192.168.1.24:11434")
-## num_ctx is llama.context_length for llama3.2:3b
-llama_long = ChatOllama(model = "llama3.2:3b", temperature = 0.8, num_predict = 2048, num_ctx=131072,base_url="http://192.168.1.24:11434")
 qwq = ChatOllama(model = "qwq", temperature = 0.8, num_predict = 1024, base_url="http://192.168.1.24:11434")
 
+DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY')
+if DEEPSEEK_API_KEY:
+    writer_llm = ChatOpenAI(
+        model="deepseek-chat",
+        api_key=DEEPSEEK_API_KEY,
+        base_url="https://api.deepseek.com",
+        temperature=0.8,
+        max_tokens=2048
+    )
+else:
+    ## num_ctx is llama.context_length for llama3.2:3b
+    writer_llm = ChatOllama(model = "llama3.2:3b", temperature = 0.8, num_predict = 2048, num_ctx=131072,base_url="http://192.168.1.24:11434")
+
+
+## This is all a mess of str concatenations - Thanks python 3.9!
 def generate_references(papers: list) -> str:
+    """
+    Returns a references paragraph based on the metadata of the given papers.
+    Args:
+        `papers` (`list(dict)`)
+    
+    Returns:
+        `str`
+    """
     references = []
     for i,paper in enumerate(papers,1):
         authors = paper['authors'].split(', ')
-        first_author = f'{authors[0].split(' ')[-1]}, {' '.join(authors[0].split(' ')[:-1])}'
+        first_author = authors[0].split(' ')[-1] + ', ' + ' '.join(authors[0].split(' ')[:-1])
         year = paper['published'].split('-')[0]
-        citation = f'({i}) {first_author}{" et al." if len(authors) > 1 else ""} "{paper['title']}." ({year}), {paper['link']}'
+        citation = f'({i}) {first_author}{" et al." if len(authors) > 1 else ""}'
+        citation += f' "' + paper['title'] + f'." ({year}), ' + paper['link']
         references.append(citation)
-    return '\n'.join(references)
-
-
-'''DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY')
-
-llm = ChatOpenAI(
-    model="deepseek-chat",
-    api_key=DEEPSEEK_API_KEY,
-    base_url="https://api.deepseek.com",
-    temperature=0.8,
-    max_tokens=512
-)'''
+    return '\n\n'.join(references)
 
 qdrant_retriever = create_retriever_tool(
     qdrant_tool.Qdrant_tool(host=QDRANT_HOST,port=QDRANT_PORT,collection=QDRANT_COLLECTION,top_k=2),
@@ -104,17 +115,17 @@ def writer(state: State):
 
     metadata = [json.loads(doc) for doc in (docs.split('\n\n'))]
 
-    model = writer_prompt | llama_long
+    model = writer_prompt | writer_llm
     response = model.invoke({'context':docs, 'question': question})
 
     #print(response)
     references = generate_references(metadata)
-    print(references)
+    #print(references)
 
     with open(f'temp/output-{str(int(time.time()))}.txt','w') as f:
         f.write(response.content)
 
-    response.content += '\n\nREFERENCES\n\n' + references
+    response.content += '\n\n###REFERENCES\n\n' + references
 
     return {"messages": [response]}
 
