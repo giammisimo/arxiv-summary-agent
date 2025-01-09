@@ -5,6 +5,7 @@ from langchain_core.retrievers import BaseRetriever
 from langchain_core.documents import Document
 from typing import List
 import arxiv_tool
+import json
 
 class Qdrant_tool(BaseRetriever):
     # Define all fields explicitly - pydantic
@@ -78,9 +79,17 @@ class Qdrant_tool(BaseRetriever):
 
                 print('Selected', paper.payload['title'], paper.payload['arxiv-id'])
 
-                content = '<paper><title>' + paper.payload['title'] + '</title><content>' + data['text'] + '</content></paper>'
+                #content = '<paper><title>' + paper.payload['title'] + '</title><content>' + data['text'] + '</content></paper>'
+                content = dict()
+                content['title'] = paper.payload['title']
+                content['authors'] = paper.payload['authors']
+                content['arxiv-id'] = paper.payload['arxiv-id']
+                content['link'] = data['arxiv_link']
+                content['published'] = paper.payload['published']
+                content['text'] = data['text']
 
-                results.append(Document(page_content=content, metadata={k:v for k,v in data.items() if k != 'text'}))
+                #results.append(Document(page_content=content, metadata={k:v for k,v in data.items() if k != 'text'}))
+                results.append(Document(page_content=json.dumps(content)))
 
                 ## Should we check for tokens left?
 

@@ -17,7 +17,7 @@ from typing_extensions import TypedDict
 import qdrant_tool
 
 import io, os
-import time
+import time, json
 from PIL import Image
 
 QDRANT_HOST = os.getenv('QDRANT_HOST','localhost')
@@ -42,6 +42,17 @@ llama = ChatOllama(model = "llama3.2:3b", temperature = 0.7, num_predict = 256, 
 ## num_ctx is llama.context_length for llama3.2:3b
 llama_long = ChatOllama(model = "llama3.2:3b", temperature = 0.8, num_predict = 2048, num_ctx=131072,base_url="http://192.168.1.24:11434")
 qwq = ChatOllama(model = "qwq", temperature = 0.8, num_predict = 1024, base_url="http://192.168.1.24:11434")
+
+def generate_references(papers: list) -> str:
+    references = []
+    for i,paper in enumerate(papers,1):
+        authors = paper['authors'].split(', ')
+        first_author = f'{authors[0].split(' ')[-1]}, {' '.join(authors[0].split(' ')[:-1])}'
+        year = paper['published'].split('-')[0]
+        citation = f'({i}) {first_author}{" et al." if len(authors) > 1 else ""} "{paper['title']}." ({year}), {paper['link']}'
+        references.append(citation)
+    return '\n'.join(references)
+
 
 '''DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY')
 
@@ -77,6 +88,7 @@ writer_prompt = PromptTemplate(
     The survey must be formal and should have an overview of all the papers and a short breakdown of every paper given.
     You must only focus on the given papers.\n
     Start directly with the content of the review. Avoid phrases like 'Based on the provided papers' or 'I will create a survey'.
+    Do not write references at the end.
     """,
     input_variables=["context", "question"],
 )
@@ -90,13 +102,19 @@ def writer(state: State):
     question = messages[0].content
     docs = messages[-1].content
 
+    metadata = [json.loads(doc) for doc in (docs.split('\n\n'))]
+
     model = writer_prompt | llama_long
     response = model.invoke({'context':docs, 'question': question})
 
     #print(response)
+    references = generate_references(metadata)
+    print(references)
 
     with open(f'temp/output-{str(int(time.time()))}.txt','w') as f:
         f.write(response.content)
+
+    response.content += '\n\nREFERENCES\n\n' + references
 
     return {"messages": [response]}
 
