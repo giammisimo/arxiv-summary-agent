@@ -2,7 +2,6 @@
 from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
 
-from langchain_core.tools import tool
 from langchain_core.prompts import PromptTemplate
 from langgraph.prebuilt import ToolNode
 from langgraph.graph import StateGraph, MessagesState
@@ -90,8 +89,6 @@ def researcher(state: State):
     return {"messages": [response]}
 
 
-# Write the survey inside <survey></survey> tags.
-
 writer_prompt = PromptTemplate(
     template="""You are an agent tasked with writing a formal literature review article (also known as a survey) based on the user's query and the provided academic papers.\n
     Here are the papers: \n\n {context} \n\n
@@ -107,7 +104,6 @@ writer_prompt = PromptTemplate(
 
 def writer(state: State):
     print('In writer')
-    #print(state)
     messages = state["messages"]
 
     question = messages[0].content
@@ -118,9 +114,7 @@ def writer(state: State):
     model = writer_prompt | writer_llm
     response = model.invoke({'context':docs, 'question': question})
 
-    #print(response)
     references = generate_references(metadata)
-    #print(references)
 
     with open(f'temp/output-{str(int(time.time()))}.txt','w') as f:
         f.write(response.content)
@@ -129,39 +123,18 @@ def writer(state: State):
 
     return {"messages": [response]}
 
-def evaluator(state: State):
-    print('In evaluator')
-    #print(state)
-    return {'messages':state['messages']}
-
-def should_continue(state: State):
-    return END # placeholder
-
 
 def get_graph():
     graph_builder = StateGraph(MessagesState)
     graph_builder.add_node("researcher",researcher)
     graph_builder.add_node("writer",writer)
-    graph_builder.add_node("evaluator",evaluator)
     retrieve = ToolNode([qdrant_retriever])
     graph_builder.add_node("retriever",retrieve)
-
-    '''graph_builder.add_conditional_edges(
-        "researcher",
-        # Assess agent decision
-        tools_condition,
-        {
-            # Translate the condition outputs to nodes in our graph
-            "tools": "retriever",
-            END: "writer",
-        },
-    )'''
 
     graph_builder.add_edge(START, "researcher")
     graph_builder.add_edge("researcher", "retriever")
     graph_builder.add_edge("retriever", "writer")
-    graph_builder.add_edge("writer", "evaluator")
-    graph_builder.add_conditional_edges("evaluator", should_continue, ["writer",END])
+    graph_builder.add_edge("writer", END)
 
     memory = MemorySaver()
 
