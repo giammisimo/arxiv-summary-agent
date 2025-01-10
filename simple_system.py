@@ -84,8 +84,8 @@ qdrant_retriever = create_retriever_tool(
 def researcher(state: State):
     print("In researcher")
     messages = state["messages"]
-    # model = llama
-    model = deep_seek
+    model = llama
+    # model = deep_seek
     model = model.bind_tools([qdrant_retriever])
     response = model.invoke(messages)
     return {"messages": [response]}
