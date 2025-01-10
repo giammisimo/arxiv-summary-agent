@@ -1,3 +1,4 @@
+
 from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
 
@@ -83,19 +84,10 @@ qdrant_retriever = create_retriever_tool(
 def researcher(state: State):
     print("In researcher")
     messages = state["messages"]
+    # model = llama
     model = deep_seek
     model = model.bind_tools([qdrant_retriever])
     response = model.invoke(messages)
-
-    # Gestione delle tool_calls
-    if getattr(response, "tool_calls", None):
-        tool_responses = []
-        for tc in response.tool_calls:
-            result = model.tools[tc.tool_name](tc.tool_input)
-            tool_responses.append({"role": "tool", "content": result, "tool_call_id": tc.tool_call_id})
-        final_response = model.invoke(messages + tool_responses)
-        return {"messages": [final_response]}
-
     return {"messages": [response]}
 
 
