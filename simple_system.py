@@ -39,6 +39,7 @@ def show_graph(graph: StateGraph):
 
 llama = ChatOllama(model = "llama3.2:3b", temperature = 0.7, num_predict = 256, base_url="http://192.168.1.24:11434")
 qwq = ChatOllama(model = "qwq", temperature = 0.8, num_predict = 1024, base_url="http://192.168.1.24:11434")
+deep_seek = ChatOpenAI(model="deepseek-chat", api_key=os.getenv('DEEPSEEK_API_KEY'), base_url="https://api.deepseek.com", temperature=0.8, max_tokens=2048)
 
 DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY')
 if DEEPSEEK_API_KEY:
@@ -83,7 +84,8 @@ qdrant_retriever = create_retriever_tool(
 def researcher(state: State):
     print("In researcher")
     messages = state["messages"]
-    model = llama
+    # model = llama
+    model = deep_seek
     model = model.bind_tools([qdrant_retriever])
     response = model.invoke(messages)
     return {"messages": [response]}
