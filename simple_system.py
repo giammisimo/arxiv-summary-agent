@@ -37,22 +37,21 @@ def show_graph(graph: StateGraph):
         print("Could not generate or display the graph image in memory. Ensure all necessary dependencies are installed.")
         print("Error:", e)
 
-llama = ChatOllama(model = "llama3.2:3b", temperature = 0.7, num_predict = 256, base_url="http://192.168.1.24:11434")
-qwq = ChatOllama(model = "qwq", temperature = 0.8, num_predict = 1024, base_url="http://192.168.1.24:11434")
-deep_seek = ChatOpenAI(model="deepseek-chat", api_key=os.getenv('DEEPSEEK_API_KEY'), base_url="https://api.deepseek.com", temperature=0.8, max_tokens=2048)
+#llama = ChatOllama(model = "llama3.2:3b", temperature = 0.7, num_predict = 256, base_url="http://192.168.1.24:11434")
+#qwq = ChatOllama(model = "qwq", temperature = 0.8, num_predict = 1024, base_url="http://192.168.1.24:11434")
 
 DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY')
 if DEEPSEEK_API_KEY:
-    writer_llm = ChatOpenAI(
+    llm = ChatOpenAI(
         model="deepseek-chat",
         api_key=DEEPSEEK_API_KEY,
         base_url="https://api.deepseek.com",
         temperature=0.8,
-        max_tokens=2048
+        max_tokens=4096
     )
 else:
     ## num_ctx is llama.context_length for llama3.2:3b
-    writer_llm = ChatOllama(model = "llama3.2:3b", temperature = 0.8, num_predict = 2048, num_ctx=131072,base_url="http://192.168.1.24:11434")
+    llm = ChatOllama(model = "llama3.2:3b", temperature = 0.8, num_predict = 2048, num_ctx=131072,base_url="http://192.168.1.24:11434")
 
 
 ## This is all a mess of str concatenations - Thanks python 3.9!
@@ -76,7 +75,7 @@ def generate_references(papers: list) -> str:
     return '\n\n'.join(references)
 
 qdrant_retriever = create_retriever_tool(
-    qdrant_tool.Qdrant_tool(host=QDRANT_HOST,port=QDRANT_PORT,collection=QDRANT_COLLECTION,top_k=2),
+    qdrant_tool.Qdrant_tool(host=QDRANT_HOST,port=QDRANT_PORT,collection=QDRANT_COLLECTION,top_k=3),
     "retrieve_arxiv_papers",
     "Search and return arxiv papers that are related to the requested query.",
 )
@@ -84,8 +83,7 @@ qdrant_retriever = create_retriever_tool(
 def researcher(state: State):
     print("In researcher")
     messages = state["messages"]
-    model = llama
-    # model = deep_seek
+    model = llm
     model = model.bind_tools([qdrant_retriever])
     response = model.invoke(messages)
     return {"messages": [response]}
@@ -113,7 +111,7 @@ def writer(state: State):
 
     metadata = [json.loads(doc) for doc in (docs.split('\n\n'))]
 
-    model = writer_prompt | writer_llm
+    model = writer_prompt | llm
     response = model.invoke({'context':docs, 'question': question})
 
     references = generate_references(metadata)
@@ -121,7 +119,7 @@ def writer(state: State):
     with open(f'temp/output-{str(int(time.time()))}.txt','w') as f:
         f.write(response.content)
 
-    response.content += '\n\n###REFERENCES\n\n' + references
+    response.content += '\n\n### REFERENCES\n\n' + references
 
     return {"messages": [response]}
 
