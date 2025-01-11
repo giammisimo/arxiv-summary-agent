@@ -9,7 +9,6 @@ langchain_openai
 sentence_transformers
 feedparser
 pydantic 
-pdfminer
 pdfminer.six 
 typing
 typing_extensions
