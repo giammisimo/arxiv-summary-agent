@@ -43,33 +43,36 @@ async def check():
 
 @app.post("/agent", response_model=AgentResponse)
 async def agent(message: UserMessage):
-    config = {"configurable": {"thread_id": "1"}}
-    user_input = message.query
-    
-    events = graph.stream(
-        {"messages": [{"role":"user","content": user_input}]}, config, stream_mode="values"
-    )
+    try:
+        config = {"configurable": {"thread_id": "1"}}
+        user_input = message.query
+        
+        events = graph.stream(
+            {"messages": [{"role":"user","content": user_input}]}, config, stream_mode="values"
+        )
 
-    print("API key", os.getenv('DEEPSEEK_API_KEY'))
-    print('QUERY:', user_input)
-    last_message = None
-    for event in events:
-        last_message = event["messages"][-1]
-        #if not isinstance(last_message,ToolMessage):
-        #    last_message.pretty_print() #stream_mode='value'
-        #else:
-        #    print('ToolMessage\n')
-    print(last_message.response_metadata)
-    print(last_message.usage_metadata)
+        print("API key", os.getenv('DEEPSEEK_API_KEY'))
+        print('QUERY:', user_input)
+        last_message = None
+        for event in events:
+            last_message = event["messages"][-1]
+            #if not isinstance(last_message,ToolMessage):
+            #    last_message.pretty_print() #stream_mode='value'
+            #else:
+            #    print('ToolMessage\n')
+        print(last_message.response_metadata)
+        print(last_message.usage_metadata)
 
-    return {'message':last_message.content}
+        return {'message':last_message.content}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail={"error": str(e)})
 
 @app.post("/query", response_model=List[QueryResult])
 async def query(message: UserMessage):
-    if not message:
-        return HTTPException(status_code=400, detail={"error": "Il campo 'query' è obbligatorio"})
-
     try:
+        if not message:
+            return HTTPException(status_code=400, detail={"error": "Il campo 'query' è obbligatorio"})
+
         results = qdrant.embed_and_search(QDRANT_COLLECTION,message.query,10)
 
         if results:
@@ -88,4 +91,4 @@ async def query(message: UserMessage):
         else:
             return HTTPException(status_code=404, detail={"message": "Nessun risultato trovato."})
     except Exception as e:
-        return HTTPException(status_code=500, detail={"error": str(e)})
+        raise HTTPException(status_code=500, detail={"error": str(e)})
