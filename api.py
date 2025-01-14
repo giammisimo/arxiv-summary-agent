@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List
+import traceback
 
 from langchain_core.messages.tool import ToolMessage
 import os
@@ -65,6 +66,7 @@ async def agent(message: UserMessage):
 
         return {'message':last_message.content}
     except Exception as e:
+        print(traceback.format_exc())
         raise HTTPException(status_code=500, detail={"error": str(e)})
 
 @app.post("/query", response_model=List[QueryResult])
