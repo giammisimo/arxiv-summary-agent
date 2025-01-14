@@ -67,7 +67,7 @@ async def agent(message: UserMessage):
         return {'message':last_message.content}
     except Exception as e:
         print(traceback.format_exc())
-        raise HTTPException(status_code=500, detail={"error": str(e)})
+        return {"message": "## " + str(e) + '\n\n Traceback:' + traceback.format_exc()}
 
 @app.post("/query", response_model=List[QueryResult])
 async def query(message: UserMessage):
