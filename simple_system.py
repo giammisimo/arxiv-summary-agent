@@ -24,6 +24,7 @@ QDRANT_COLLECTION = os.getenv('QDRANT_COLLECTION','Gruppo1')
 
 class State(TypedDict):
     messages: Annotated[list, add_messages]
+    papers_found: bool
 
 def show_graph(graph: StateGraph):
     try:
@@ -53,13 +54,20 @@ else:
     llm = ChatOllama(model = "llama3.2:3b", temperature = 0.8, num_predict = 2048, num_ctx=131072,base_url="http://192.168.1.24:11434")
 
 
+def should_rewrite_query(state: State):
+    """
+    Determines whether to route to evaluator based on if papers were found
+    """
+    return not state["papers_found"]
+
+
 ## This is all a mess of str concatenations - Thanks python 3.9!
 def generate_references(papers: list) -> str:
     """
     Returns a references paragraph based on the metadata of the given papers.
     Args:
         `papers` (`list(dict)`)
-    
+
     Returns:
         `str`
     """
@@ -88,6 +96,35 @@ def researcher(state: State):
     return {"messages": [response]}
 
 
+evaluator_prompt = PromptTemplate(
+    template="""
+    Rewrite the following query to extract only the core keywords directly related to the main topic.\n
+    Keep the query concise and focused, avoiding unnecessary expansions or additional terms.\n
+    Expand any acronyms or ambiguous terms where necessary.\n
+    Avoid adding any explanations or introductory phrases. Respond only with the rewritten keywords and nothing else.\n
+
+    Original query: '{original_query}'
+    """,
+    input_variables=["original_query"],
+)
+
+
+def evaluator(state: State):
+    print("In evaluator")
+    messages = state["messages"]
+
+    original_query = messages[0].content
+
+    model = evaluator_prompt | llm
+    response = model.invoke({"original_query": original_query})
+
+    print(f"Rewritten query: {response.content.strip()}")
+
+    messages = response
+
+    return {"messages": messages}
+
+
 writer_prompt = PromptTemplate(
     template="""You are an agent tasked with writing a formal literature review article (also known as a survey) based on the user's query and the provided academic papers.\n
     Here are the papers: \n\n {context} \n\n
@@ -107,6 +144,10 @@ def writer(state: State):
 
     question = messages[0].content
     docs = messages[-1].content
+
+    # No papers found
+    if len(docs) == 0:
+        return {"messages": messages, "papers_found": False}
 
     metadata = [json.loads(doc) for doc in (docs.split('\n\n'))]
 
@@ -132,12 +173,13 @@ def writer(state: State):
 
     response.content += '\n\n---\n### REFERENCES\n\n' + references
 
-    return {"messages": [response]}
+    return {"messages": [response], "papers_found": True}
 
 
 def get_graph():
     graph_builder = StateGraph(MessagesState)
     graph_builder.add_node("researcher",researcher)
+    graph_builder.add_node("evaluator", evaluator)
     graph_builder.add_node("writer",writer)
     retrieve = ToolNode([qdrant_retriever])
     graph_builder.add_node("retriever",retrieve)
@@ -145,7 +187,17 @@ def get_graph():
     graph_builder.add_edge(START, "researcher")
     graph_builder.add_edge("researcher", "retriever")
     graph_builder.add_edge("retriever", "writer")
-    graph_builder.add_edge("writer", END)
+
+    graph_builder.add_conditional_edges(
+        "writer",
+        should_rewrite_query,
+        {
+            True: "evaluator",
+            False: END
+        }
+    )
+
+    graph_builder.add_edge("evaluator", "researcher")
 
     memory = MemorySaver()
 
