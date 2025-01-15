@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List
 import traceback
+from random import randint
 
 from langchain_core.messages.tool import ToolMessage
 import os
@@ -45,7 +46,7 @@ async def check():
 @app.post("/agent", response_model=AgentResponse)
 async def agent(message: UserMessage):
     try:
-        config = {"configurable": {"thread_id": "1"}}
+        config = {"configurable": {"thread_id": str(randint(1,2048))}, "use_memory": False}
         user_input = message.query
         
         events = graph.stream(
