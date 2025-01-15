@@ -1,4 +1,3 @@
-
 from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
 
@@ -75,7 +74,7 @@ def generate_references(papers: list) -> str:
     return '\n\n'.join(references)
 
 qdrant_retriever = create_retriever_tool(
-    qdrant_tool.Qdrant_tool(host=QDRANT_HOST,port=QDRANT_PORT,collection=QDRANT_COLLECTION,top_k=3),
+    qdrant_tool.Qdrant_tool(host=QDRANT_HOST,port=QDRANT_PORT,collection=QDRANT_COLLECTION,top_k=5),
     "retrieve_arxiv_papers",
     "Search and return arxiv papers that are related to the requested query.",
 )
@@ -111,15 +110,27 @@ def writer(state: State):
 
     metadata = [json.loads(doc) for doc in (docs.split('\n\n'))]
 
+    tokens = 0
+    for i,paper in enumerate(metadata):
+        tokens += len(paper['text'])
+        print(tokens/3)
+        if (tokens/3) > 52000:
+            print(f'TOO MANY TOKENS, LIMITED TO {i} PAPERS')
+            docs = '\n\n'.join([json.dumps(metadata[k]) for k in range(i)])
+            references = generate_references(metadata[:i])
+            break
+    else:
+        references = generate_references(metadata)
+
+    print('Estimated tokens:',tokens/3)
+
     model = writer_prompt | llm
     response = model.invoke({'context':docs, 'question': question})
-
-    references = generate_references(metadata)
 
     with open(f'temp/output-{str(int(time.time()))}.txt','w') as f:
         f.write(response.content)
 
-    response.content += '\n\n### REFERENCES\n\n' + references
+    response.content += '\n\n---\n### REFERENCES\n\n' + references
 
     return {"messages": [response]}
 
