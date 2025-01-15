@@ -92,7 +92,7 @@ writer_prompt = PromptTemplate(
     template="""You are an agent tasked with writing a formal literature review article (also known as a survey) based on the user's query and the provided academic papers.\n
     Here are the papers: \n\n {context} \n\n
     Here is the user query: {question} \n
-    The survey must be formal and should have an overview of all the papers and a short breakdown of every paper given.
+    The survey must be formal and should have: an single summary that talks about the argument and the papers and a short breakdown of every paper given.
     You must only focus on the given papers.\n
     Start directly with the content of the review. Avoid phrases like 'Based on the provided papers' or 'I will create a survey'.
     Do not write references at the end.
