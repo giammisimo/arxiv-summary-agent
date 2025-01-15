@@ -62,14 +62,21 @@ def get_paper(paper_id: str) -> dict:
             `pdf_link`: Link al file pdf contenente il paper
             `text`: Contenuto testuale del paper
     """
-    paper = get_links(paper_id)
+    print(f'REQUESTED PAPER {paper_id}')
 
-    pdf = requests.get(paper['pdf_link'])
+    try:
+        paper = dict()
+        paper['arxiv_link'] = f'https://arxiv.org/abs/{paper_id}'
+        paper['text'] = open(f'temp/{paper_id}.txt','r').read()
+    except:
+        print(f'DOWNLOADING {paper_id}')    
+        paper = get_links(paper_id)
+        pdf = requests.get(paper['pdf_link'])
+        pdf_content = BytesIO(pdf.content)
 
-    pdf_content = BytesIO(pdf.content)
-    paper['text'] = prune_paper(extract_text(pdf_content))
+        paper['text'] = prune_paper(extract_text(pdf_content))
 
-    with open(f'temp/{paper_id}.txt','w') as f:
-        f.write(paper['text'])
+        with open(f'temp/{paper_id}.txt','w') as f:
+            f.write(paper['text'])
 
     return paper
