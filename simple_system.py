@@ -24,7 +24,6 @@ QDRANT_COLLECTION = os.getenv('QDRANT_COLLECTION','Gruppo1')
 
 class State(TypedDict):
     messages: Annotated[list, add_messages]
-    papers_found: bool
 
 def show_graph(graph: StateGraph):
     try:
@@ -54,11 +53,13 @@ else:
     llm = ChatOllama(model = "llama3.2:3b", temperature = 0.8, num_predict = 2048, num_ctx=131072,base_url="http://192.168.1.24:11434")
 
 
-def should_rewrite_query(state: State):
+def has_papers(state: State):
     """
-    Determines whether to route to evaluator based on if papers were found
+    Returns True if papers were found in the retrieval, False otherwise
     """
-    return not state["papers_found"]
+    messages = state["messages"]
+    has_content = len(messages[-1].content) > 0
+    return has_content
 
 
 ## This is all a mess of str concatenations - Thanks python 3.9!
@@ -145,10 +146,6 @@ def writer(state: State):
     question = messages[0].content
     docs = messages[-1].content
 
-    # No papers found
-    if len(docs) == 0:
-        return {"messages": messages, "papers_found": False}
-
     metadata = [json.loads(doc) for doc in (docs.split('\n\n'))]
 
     tokens = 0
@@ -173,7 +170,7 @@ def writer(state: State):
 
     response.content += '\n\n---\n### REFERENCES\n\n' + references
 
-    return {"messages": [response], "papers_found": True}
+    return {"messages": [response]}
 
 
 def get_graph():
@@ -186,18 +183,16 @@ def get_graph():
 
     graph_builder.add_edge(START, "researcher")
     graph_builder.add_edge("researcher", "retriever")
-    graph_builder.add_edge("retriever", "writer")
-
     graph_builder.add_conditional_edges(
-        "writer",
-        should_rewrite_query,
+        "retriever",
+        has_papers,
         {
-            True: "evaluator",
-            False: END
+            True: "writer",
+            False: "evaluator"
         }
     )
-
     graph_builder.add_edge("evaluator", "researcher")
+    graph_builder.add_edge("writer", END)
 
     memory = MemorySaver()
 
