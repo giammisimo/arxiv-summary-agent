@@ -6,6 +6,7 @@ from langchain_core.documents import Document
 from typing import List
 import arxiv_tool
 import json
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 class Qdrant_tool(BaseRetriever):
     # Define all fields explicitly - pydantic
@@ -70,30 +71,40 @@ class Qdrant_tool(BaseRetriever):
 
         results: List[Document] = []
         
+        with ThreadPoolExecutor() as executor:
+            future_to_paper = {executor.submit(self.fetch_paper, paper): paper for paper in papers}
+            
+            for future in as_completed(future_to_paper):
+                try:
+                    result = future.result()
+                    if result:
+                        results.append(result)
+                except Exception as e:
+                    print(f"Error in thread: {e}")
+
+        return results
+    
+    def fetch_paper(self,paper):
+        """
+        Helper function to fetch a paper's data and structure it.
+        """
         try:
-            for paper in papers:
-                if float(paper.score) < self.threshold:
-                    break # we assume that papers are sorted by similarity
+            if float(paper.score) < self.threshold:
+                return None  # Skip papers below the threshold
 
-                data = arxiv_tool.get_paper(paper.payload['arxiv-id'])
+            data = arxiv_tool.get_paper(paper.payload['arxiv-id'])
+            print('Selected', paper.payload['title'], paper.payload['arxiv-id'])
 
-                print('Selected', paper.payload['title'], paper.payload['arxiv-id'])
+            content = {
+                'title': paper.payload['title'],
+                'authors': paper.payload['authors'],
+                'arxiv-id': paper.payload['arxiv-id'],
+                'link': data['arxiv_link'],
+                'published': paper.payload['published'],
+                'text': data['text']
+            }
 
-                #content = '<paper><title>' + paper.payload['title'] + '</title><content>' + data['text'] + '</content></paper>'
-                content = dict()
-                content['title'] = paper.payload['title']
-                content['authors'] = paper.payload['authors']
-                content['arxiv-id'] = paper.payload['arxiv-id']
-                content['link'] = data['arxiv_link']
-                content['published'] = paper.payload['published']
-                content['text'] = data['text']
-
-                #results.append(Document(page_content=content, metadata={k:v for k,v in data.items() if k != 'text'}))
-                results.append(Document(page_content=json.dumps(content)))
-
-                ## Should we check for tokens left?
-
-            return results
+            return Document(page_content=json.dumps(content))
         except Exception as e:
-            print(e)
-            exit()
+            print(f"Error processing paper {paper.payload['arxiv-id']}: {e}")
+            return None
