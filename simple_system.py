@@ -2,6 +2,7 @@ from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
 
 from langchain_core.prompts import PromptTemplate
+from langchain_core.messages import AIMessage
 from langgraph.prebuilt import ToolNode
 from langgraph.graph import StateGraph, MessagesState
 from langgraph.graph.graph import START, END
@@ -21,6 +22,9 @@ from PIL import Image
 QDRANT_HOST = os.getenv('QDRANT_HOST','localhost')
 QDRANT_PORT = int(os.getenv('QDRANT_PORT','6555'))
 QDRANT_COLLECTION = os.getenv('QDRANT_COLLECTION','Gruppo1')
+MAX_RETRIES = 2
+
+global_context = {"retry_count": 0}
 
 class State(TypedDict):
     messages: Annotated[list, add_messages]
@@ -58,6 +62,12 @@ def has_papers(state: State):
     Returns True if papers were found in the retrieval, False otherwise
     """
     messages = state["messages"]
+    retry_count = global_context["retry_count"]
+
+    if retry_count >= MAX_RETRIES:
+        print(f"Max retries ({MAX_RETRIES}) reached. Ending chain.")
+        return True
+
     has_content = len(messages[-1].content) > 0
     return has_content
 
@@ -114,6 +124,8 @@ def evaluator(state: State):
     print("In evaluator")
     messages = state["messages"]
 
+    global_context["retry_count"] += 1
+
     original_query = messages[0].content
 
     model = evaluator_prompt | llm
@@ -145,6 +157,14 @@ def writer(state: State):
 
     question = messages[0].content
     docs = messages[-1].content
+
+    if global_context["retry_count"] >= MAX_RETRIES:
+        return {
+            "messages": [
+                AIMessage(content=f"I apologize, but after {MAX_RETRIES} attempts to refine the search query, "
+                         "I still couldn't find any relevant papers. You might want to try a different search term or broaden your query.")
+            ]
+        }
 
     metadata = [json.loads(doc) for doc in (docs.split('\n\n'))]
 
