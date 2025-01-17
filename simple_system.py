@@ -2,6 +2,7 @@ from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
 
 from langchain_core.prompts import PromptTemplate
+from langchain_core.messages import AIMessage
 from langgraph.prebuilt import ToolNode
 from langgraph.graph import StateGraph, MessagesState
 from langgraph.graph.graph import START, END
@@ -21,6 +22,7 @@ from PIL import Image
 QDRANT_HOST = os.getenv('QDRANT_HOST','localhost')
 QDRANT_PORT = int(os.getenv('QDRANT_PORT','6555'))
 QDRANT_COLLECTION = os.getenv('QDRANT_COLLECTION','Gruppo1')
+MAX_MESSAGES = 10
 
 class State(TypedDict):
     messages: Annotated[list, add_messages]
@@ -53,13 +55,27 @@ else:
     llm = ChatOllama(model = "llama3.2:3b", temperature = 0.8, num_predict = 2048, num_ctx=131072,base_url="http://192.168.1.24:11434")
 
 
+def has_papers(state: State):
+    """
+    Returns True if papers were found in the retrieval, False otherwise
+    """
+    messages = state["messages"]
+
+    if len(messages) >= MAX_MESSAGES:
+        print(f"Max retries ({MAX_MESSAGES}) reached. Ending chain.")
+        return True
+
+    has_content = len(messages[-1].content) > 0
+    return has_content
+
+
 ## This is all a mess of str concatenations - Thanks python 3.9!
 def generate_references(papers: list) -> str:
     """
     Returns a references paragraph based on the metadata of the given papers.
     Args:
         `papers` (`list(dict)`)
-    
+
     Returns:
         `str`
     """
@@ -88,6 +104,35 @@ def researcher(state: State):
     return {"messages": [response]}
 
 
+evaluator_prompt = PromptTemplate(
+    template="""
+    Rewrite the following query to extract only the core keywords directly related to the main topic.\n
+    Keep the query concise and focused, avoiding unnecessary expansions or additional terms.\n
+    Expand any acronyms or ambiguous terms where necessary.\n
+    Avoid adding any explanations or introductory phrases. Respond only with the rewritten keywords and nothing else.\n
+
+    Original query: '{original_query}'
+    """,
+    input_variables=["original_query"],
+)
+
+
+def evaluator(state: State):
+    print("In evaluator")
+    messages = state["messages"]
+
+    original_query = messages[0].content
+
+    model = evaluator_prompt | llm
+    response = model.invoke({"original_query": original_query})
+
+    print(f"Rewritten query: {response.content.strip()}")
+
+    messages = response
+
+    return {"messages": messages}
+
+
 writer_prompt = PromptTemplate(
     template="""You are an agent tasked with writing a formal literature review article (also known as a survey) based on the user's query and the provided academic papers.\n
     Here are the papers: \n\n {context} \n\n
@@ -107,6 +152,14 @@ def writer(state: State):
 
     question = messages[0].content
     docs = messages[-1].content
+
+    if len(docs) == 0:
+        return {
+            "messages": [
+                AIMessage(content=f"I apologize, but after {MAX_MESSAGES} attempts to refine the search query, "
+                         "I still couldn't find any relevant papers. You might want to try a different search term or broaden your query.")
+            ]
+        }
 
     metadata = [json.loads(doc) for doc in (docs.split('\n\n'))]
 
@@ -138,13 +191,22 @@ def writer(state: State):
 def get_graph():
     graph_builder = StateGraph(MessagesState)
     graph_builder.add_node("researcher",researcher)
+    graph_builder.add_node("evaluator", evaluator)
     graph_builder.add_node("writer",writer)
     retrieve = ToolNode([qdrant_retriever])
     graph_builder.add_node("retriever",retrieve)
 
     graph_builder.add_edge(START, "researcher")
     graph_builder.add_edge("researcher", "retriever")
-    graph_builder.add_edge("retriever", "writer")
+    graph_builder.add_conditional_edges(
+        "retriever",
+        has_papers,
+        {
+            True: "writer",
+            False: "evaluator"
+        }
+    )
+    graph_builder.add_edge("evaluator", "researcher")
     graph_builder.add_edge("writer", END)
 
     memory = MemorySaver()
