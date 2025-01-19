@@ -32,7 +32,7 @@ def show_graph(graph: StateGraph):
         png_bytes = graph.get_graph().draw_mermaid_png()
 
         img = Image.open(io.BytesIO(png_bytes))
-        img.save('simple-graph.jpg')
+        img.save('summaryagent.jpg')
 
     except Exception as e:
         print("Could not generate or display the graph image in memory. Ensure all necessary dependencies are installed.")
