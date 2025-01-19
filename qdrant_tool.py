@@ -53,9 +53,7 @@ class Qdrant_tool(BaseRetriever):
         Returns:
             `List[ScoredPoint]`: Lista di punti più simili.
         """
-        print('QDRANT CALLED')
-        #client = QdrantClient(host=self.host, port=self.port)
-        #embedding_model = SentenceTransformer(self.embedding_model)
+        #print('QDRANT CALLED')
         query_embedding = self.encoder.encode(query, convert_to_tensor=False).tolist()
 
         search_results = self.client.search(

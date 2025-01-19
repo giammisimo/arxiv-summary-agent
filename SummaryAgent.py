@@ -43,6 +43,7 @@ def show_graph(graph: StateGraph):
 
 DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY')
 if DEEPSEEK_API_KEY:
+    print(f'DEEPSEEK API KEY DETECTED - {DEEPSEEK_API_KEY[:10]}...')
     llm = ChatOpenAI(
         model="deepseek-chat",
         api_key=DEEPSEEK_API_KEY,
@@ -51,6 +52,7 @@ if DEEPSEEK_API_KEY:
         max_tokens=4096
     )
 else:
+    print('NO DEEPSEEK API KEY - reverting to llama')
     ## num_ctx is llama.context_length for llama3.2:3b
     llm = ChatOllama(model = "llama3.2:3b", temperature = 0.8, num_predict = 2048, num_ctx=131072,base_url="http://192.168.1.24:11434")
 

@@ -53,7 +53,6 @@ async def agent(message: UserMessage):
             {"messages": [{"role":"user","content": user_input}]}, config, stream_mode="values"
         )
 
-        print("API key", os.getenv('DEEPSEEK_API_KEY'))
         print('QUERY:', user_input)
         last_message = None
         for event in events:
