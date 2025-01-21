@@ -67,8 +67,13 @@ def has_papers(state: State):
         print(f"Max retries ({MAX_MESSAGES}) reached. Ending chain.")
         return True
 
-    has_content = len(messages[-1].content) > 0
-    return has_content
+    #has_content = len(messages[-1].content) > 0
+    try:
+        metadata = [json.loads(doc) for doc in (messages[-1].content.split('\n\n'))]
+        return  True
+    except:
+        return False
+    #return has_content
 
 
 ## This is all a mess of str concatenations - Thanks python 3.9!
@@ -103,6 +108,7 @@ def researcher(state: State):
     model = llm
     model = model.bind_tools([qdrant_retriever])
     response = model.invoke(messages)
+    print('RESEARCHER',response)
     return {"messages": [response]}
 
 
