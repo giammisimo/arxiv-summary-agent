@@ -7,7 +7,7 @@ from random import randint
 
 from langchain_core.messages.tool import ToolMessage
 import os
-import simple_system
+import SummaryAgent
 import qdrant_tool
 
 QDRANT_HOST = os.getenv('QDRANT_HOST','localhost')
@@ -15,7 +15,7 @@ QDRANT_PORT = int(os.getenv('QDRANT_PORT','6555'))
 QDRANT_COLLECTION = os.getenv('QDRANT_COLLECTION','Gruppo1')
 
 app = FastAPI()
-graph = simple_system.get_graph()
+graph = SummaryAgent.get_graph()
 qdrant = qdrant_tool.Qdrant_tool(host=QDRANT_HOST,port=QDRANT_PORT,collection=QDRANT_COLLECTION,top_k=10)
 
 app.add_middleware(
@@ -53,7 +53,6 @@ async def agent(message: UserMessage):
             {"messages": [{"role":"user","content": user_input}]}, config, stream_mode="values"
         )
 
-        print("API key", os.getenv('DEEPSEEK_API_KEY'))
         print('QUERY:', user_input)
         last_message = None
         for event in events:

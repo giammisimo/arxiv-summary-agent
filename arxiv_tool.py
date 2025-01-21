@@ -8,7 +8,7 @@ def prune_paper(text: str) -> str:
     """
     Rimuove le sezioni del paper non utili al riassunto. 
     """
-    a = (len(text))
+    #a = (len(text))
 
     text = re.sub(r'( \n){3,}','',text)
     text = re.sub(r'\n.\n','',text)
@@ -22,7 +22,7 @@ def prune_paper(text: str) -> str:
     if match:
         text = text[:match.start()]
 
-    print(a, len(text))
+    #print(a, len(text))
     return text
 
 def get_links(paper_id: str) -> dict:
@@ -65,6 +65,7 @@ def get_paper(paper_id: str) -> dict:
     print(f'REQUESTED PAPER {paper_id}')
 
     try:
+        print(f'FOUND locally {paper_id}')   
         paper = dict()
         paper['arxiv_link'] = f'https://arxiv.org/abs/{paper_id}'
         paper['text'] = open(f'temp/{paper_id}.txt','r').read()

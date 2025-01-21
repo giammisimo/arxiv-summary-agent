@@ -1,11 +1,12 @@
-import simple_system
+import SummaryAgent
 from langchain_core.messages.tool import ToolMessage
+from random import randint
 
-graph = simple_system.get_graph()
-simple_system.show_graph(graph)
+graph = SummaryAgent.get_graph()
+SummaryAgent.show_graph(graph)
 
 def main():
-    config = {"configurable": {"thread_id": "1"}}
+    config = {"configurable": {"thread_id": str(randint(1,2048))}, "use_memory": False}
 
     user_input = input("Query: ")
 

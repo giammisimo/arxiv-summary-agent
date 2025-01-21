@@ -32,7 +32,7 @@ def show_graph(graph: StateGraph):
         png_bytes = graph.get_graph().draw_mermaid_png()
 
         img = Image.open(io.BytesIO(png_bytes))
-        img.save('simple-graph.jpg')
+        img.save('summaryagent.jpg')
 
     except Exception as e:
         print("Could not generate or display the graph image in memory. Ensure all necessary dependencies are installed.")
@@ -43,6 +43,7 @@ def show_graph(graph: StateGraph):
 
 DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY')
 if DEEPSEEK_API_KEY:
+    print(f'DEEPSEEK API KEY DETECTED - {DEEPSEEK_API_KEY[:10]}...')
     llm = ChatOpenAI(
         model="deepseek-chat",
         api_key=DEEPSEEK_API_KEY,
@@ -51,6 +52,7 @@ if DEEPSEEK_API_KEY:
         max_tokens=4096
     )
 else:
+    print('NO DEEPSEEK API KEY - reverting to llama')
     ## num_ctx is llama.context_length for llama3.2:3b
     llm = ChatOllama(model = "llama3.2:3b", temperature = 0.8, num_predict = 2048, num_ctx=131072,base_url="http://192.168.1.24:11434")
 
@@ -65,8 +67,13 @@ def has_papers(state: State):
         print(f"Max retries ({MAX_MESSAGES}) reached. Ending chain.")
         return True
 
-    has_content = len(messages[-1].content) > 0
-    return has_content
+    #has_content = len(messages[-1].content) > 0
+    try:
+        metadata = [json.loads(doc) for doc in (messages[-1].content.split('\n\n'))]
+        return  True
+    except:
+        return False
+    #return has_content
 
 
 ## This is all a mess of str concatenations - Thanks python 3.9!
@@ -101,6 +108,7 @@ def researcher(state: State):
     model = llm
     model = model.bind_tools([qdrant_retriever])
     response = model.invoke(messages)
+    print('RESEARCHER',response)
     return {"messages": [response]}
 
 
